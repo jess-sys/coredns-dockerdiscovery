@@ -86,6 +86,19 @@ func (dd *DockerDiscovery) ServeDNS(ctx context.Context, w dns.ResponseWriter, r
 	var answers []dns.RR
 	switch state.QType() {
 	case dns.TypeA:
+		nodes, err := dd.dockerClient.ListNodes(dockerapi.ListNodesOptions{
+			Filters: nil,
+			Context: ctx,
+		})
+		if nodes == nil || len(nodes) < 1 {
+			return 0, err
+		}
+		if err != nil {
+			return 0, err
+		}
+		println("Nodes", nodes)
+		swarm, err := dd.dockerClient.InspectNode(nodes[0].ID)
+		println("Inspection", swarm)
 		containerInfo, _ := dd.containerInfoByDomain(state.QName())
 		if containerInfo != nil {
 			answers = getAnswer(state.Name(), []net.IP{containerInfo.address}, dd.ttl, false)
