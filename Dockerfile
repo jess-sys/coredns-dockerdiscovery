@@ -11,10 +11,10 @@ RUN go mod download github.com/coredns/coredns@v${COREDNS_VERS}
 WORKDIR $GOPATH/pkg/mod/github.com/coredns/coredns@v${COREDNS_VERS}
 RUN go mod download
 
-COPY --link ./ $GOPATH/pkg/mod/github.com/kevinjqiu/coredns-dockerdiscovery
+COPY --link ./ $GOPATH/pkg/mod/github.com/jess-sys/coredns-dockerdiscovery
 RUN sed -i "s/^#.*//g; /^$/d; $PLUGIN_PRIO i docker:dockerdiscovery" plugin.cfg \
     && go mod edit -replace\
-    dockerdiscovery=$GOPATH/pkg/mod/github.com/kevinjqiu/coredns-dockerdiscovery\
+    dockerdiscovery=$GOPATH/pkg/mod/github.com/jess-sys/coredns-dockerdiscovery\
     && go generate coredns.go && go build -mod=mod -o=/usr/local/bin/coredns && \
     apk --no-cache add binutils && strip -vs /usr/local/bin/coredns
 
