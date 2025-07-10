@@ -40,6 +40,12 @@ func createPlugin(c *caddy.Controller) (*DockerDiscovery, error) {
 		for c.NextBlock() {
 			var value = c.Val()
 			switch value {
+			case "use_host_ip":
+				dd.hostIp = "127.0.0.1"
+				if !c.NextArg() {
+					return dd, c.ArgErr()
+				}
+				dd.hostIp = c.Val()
 			case "domain":
 				var resolver = &SubDomainContainerNameResolver{
 					domain: defaultDockerDomain,
