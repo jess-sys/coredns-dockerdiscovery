@@ -1,6 +1,6 @@
 .:15353 {
     docker unix:///var/run/docker.sock {
-        ttl 3600
+        ttl 5
     }
     log
     loop

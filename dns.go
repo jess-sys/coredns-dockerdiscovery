@@ -19,17 +19,17 @@ func (dd *DockerDiscovery) ServeDNS(ctx context.Context, w dns.ResponseWriter, r
 			return plugin.NextOrFailure(dd.Name(), dd.Next, ctx, w, r)
 		}
 		if serviceInfo != nil && serviceInfo.hostnames != nil {
-			log.Printf("[swarmdiscovery] Found hostnames for service %s", serviceInfo.service.Spec.Name)
+			//log.Printf("[swarmdiscovery] Found hostnames for service %s", serviceInfo.service.Spec.Name)
 			//ip := net.ParseIP(serviceInfo.worker)
 			//log.Printf("[swarmdiscovery] Found IP %s for service %s", ip.String(), serviceInfo.service.Spec.Name)
 			answers = getAnswer(serviceInfo.worker, state.QName(), dd.ttl)
 		} else {
-			log.Printf("[swarmdiscovery] No service found for query %s\n", state.QName())
+			//log.Printf("[swarmdiscovery] No service found for query %s\n", state.QName())
 		}
 	}
 
 	if len(answers) == 0 {
-		log.Printf("[swarmdiscovery] No answer found for query %s\n", state.QName())
+		//log.Printf("[swarmdiscovery] No answer found for query %s\n", state.QName())
 		return plugin.NextOrFailure(dd.Name(), dd.Next, ctx, w, r)
 	}
 
