@@ -96,9 +96,18 @@ func (dd *DockerDiscovery) ServeDNS(ctx context.Context, w dns.ResponseWriter, r
 		if err != nil {
 			return 0, err
 		}
-		log.Printf("Nodes %+v\n", nodes)
-		swarm, err := dd.dockerClient.InspectNode(nodes[0].ID)
-		log.Printf("Inspection %+v\n", swarm)
+		log.Printf("\n\nNodes %+v\n\n", nodes)
+		node := nodes[0]
+		swarm, err := dd.dockerClient.InspectNode(node.ID)
+		log.Printf("\n\nInspection for node %s:\n%+v\n\n", node.Spec.Name, swarm)
+
+		tasks, err := dd.dockerClient.ListTasks(dockerapi.ListTasksOptions{
+			Filters: map[string][]string{
+				"node": {node.ID},
+			},
+		})
+		log.Printf("\n\nTasks for node %s:\n %+v\n\n", node.Spec.Name, tasks)
+
 		containerInfo, _ := dd.containerInfoByDomain(state.QName())
 		if containerInfo != nil {
 			answers = getAnswer(state.Name(), []net.IP{containerInfo.address}, dd.ttl, false)
