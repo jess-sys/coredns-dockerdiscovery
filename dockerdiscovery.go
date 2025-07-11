@@ -293,6 +293,7 @@ func (dd *DockerDiscovery) start() error {
 	for msg := range events {
 		go func(msg *dockerapi.APIEvents) {
 			event := fmt.Sprintf("%s:%s", msg.Type, msg.Action)
+			fmt.Printf("[special] new API event of type %s: %s, full dump: %+v\n", msg.Type, event, msg)
 			switch event {
 			case "container:start":
 				log.Println("[docker] New container spawned. Attempt to add A/AAAA records for it")
