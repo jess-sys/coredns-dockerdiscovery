@@ -23,7 +23,7 @@ func (dd *DockerDiscovery) ServeDNS(ctx context.Context, w dns.ResponseWriter, r
 			log.Printf("[swarmdiscovery] Found hostnames for service %s", serviceInfo.service.Spec.Name)
 			ip := net.ParseIP(serviceInfo.worker)
 			log.Printf("[swarmdiscovery] Found IP %s for service %s", ip.String(), serviceInfo.service.Spec.Name)
-			answers = getAnswer(ip, serviceInfo.hostnames, dd.ttl)
+			answers = getAnswer(ip, state.QName(), dd.ttl)
 		} else {
 			log.Printf("[swarmdiscovery] No service found for query %s\n", state.QName())
 		}
@@ -49,18 +49,16 @@ func (dd *DockerDiscovery) ServeDNS(ctx context.Context, w dns.ResponseWriter, r
 	return dns.RcodeSuccess, nil
 }
 
-func getAnswer(targetIp net.IP, hostnames []string, ttl uint32) []dns.RR {
+func getAnswer(targetIp net.IP, hostname string, ttl uint32) []dns.RR {
 	var answers []dns.RR
-	for _, hostname := range hostnames {
-		record := new(dns.A)
-		record.Hdr = dns.RR_Header{
-			Name:   dns.Fqdn(hostname),
-			Rrtype: dns.TypeA,
-			Class:  dns.ClassINET,
-			Ttl:    ttl,
-		}
-		record.A = targetIp
-		answers = append(answers, record)
+	record := new(dns.A)
+	record.Hdr = dns.RR_Header{
+		Name:   dns.Fqdn(hostname),
+		Rrtype: dns.TypeA,
+		Class:  dns.ClassINET,
+		Ttl:    ttl,
 	}
+	record.A = targetIp
+	answers = append(answers, record)
 	return answers
 }
