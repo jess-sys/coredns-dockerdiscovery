@@ -6,14 +6,13 @@ import (
 	"github.com/miekg/dns"
 	"golang.org/x/net/context"
 	"log"
-	"net"
 )
 
 func (dd *DockerDiscovery) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	state := request.Request{W: w, Req: r}
 	var answers []dns.RR
 	switch state.QType() {
-	case dns.TypeA:
+	case dns.TypeCNAME, dns.TypeA:
 		serviceInfo, err := dd.serviceInfoByHostname(state.QName())
 		if err != nil {
 			log.Println("[swarmdiscovery] Failed to get service info:", err)
@@ -21,9 +20,9 @@ func (dd *DockerDiscovery) ServeDNS(ctx context.Context, w dns.ResponseWriter, r
 		}
 		if serviceInfo != nil && serviceInfo.hostnames != nil {
 			log.Printf("[swarmdiscovery] Found hostnames for service %s", serviceInfo.service.Spec.Name)
-			ip := net.ParseIP(serviceInfo.worker)
-			log.Printf("[swarmdiscovery] Found IP %s for service %s", ip.String(), serviceInfo.service.Spec.Name)
-			answers = getAnswer(ip, state.QName(), dd.ttl)
+			//ip := net.ParseIP(serviceInfo.worker)
+			//log.Printf("[swarmdiscovery] Found IP %s for service %s", ip.String(), serviceInfo.service.Spec.Name)
+			answers = getAnswer(serviceInfo.worker, state.QName(), dd.ttl)
 		} else {
 			log.Printf("[swarmdiscovery] No service found for query %s\n", state.QName())
 		}
@@ -49,16 +48,17 @@ func (dd *DockerDiscovery) ServeDNS(ctx context.Context, w dns.ResponseWriter, r
 	return dns.RcodeSuccess, nil
 }
 
-func getAnswer(targetIp net.IP, hostname string, ttl uint32) []dns.RR {
+// func getAnswer(targetIp net.IP, hostname string, ttl uint32) []dns.RR {
+func getAnswer(target string, hostname string, ttl uint32) []dns.RR {
 	var answers []dns.RR
-	record := new(dns.A)
+	record := new(dns.CNAME)
 	record.Hdr = dns.RR_Header{
 		Name:   dns.Fqdn(hostname),
-		Rrtype: dns.TypeA,
+		Rrtype: dns.TypeCNAME,
 		Class:  dns.ClassINET,
 		Ttl:    ttl,
 	}
-	record.A = targetIp
+	record.Target = dns.Fqdn(target)
 	answers = append(answers, record)
 	return answers
 }
