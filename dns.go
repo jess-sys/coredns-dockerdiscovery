@@ -11,76 +11,56 @@ import (
 
 func (dd *DockerDiscovery) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	state := request.Request{W: w, Req: r}
-
+	var answers []dns.RR
 	switch state.QType() {
-	case dns.TypeA, dns.TypeCNAME:
-		svc, err := dd.serviceInfoByHostname(state.QName())
+	case dns.TypeA:
+		serviceInfo, err := dd.serviceInfoByHostname(state.QName())
 		if err != nil {
-			log.Printf("[swarmdiscovery] lookup error: %v", err)
+			log.Println("[swarmdiscovery] Failed to get service info:", err)
 			return plugin.NextOrFailure(dd.Name(), dd.Next, ctx, w, r)
 		}
-		if svc != nil {
-			// build either CNAME or A (or CNAME‐for‐A) answers
-			answers := getAnswer(state.QType(), svc.worker, svc.hostnames, dd.ttl)
-			if len(answers) == 0 {
-				// nothing known → hand off
-				return plugin.NextOrFailure(dd.Name(), dd.Next, ctx, w, r)
-			}
-
-			// write our partial answer
-			msg := new(dns.Msg)
-			msg.SetReply(r)
-			msg.Authoritative = false
-			msg.Answer = answers
-			w.WriteMsg(msg)
-
-			// if the client asked for A, but we only gave them a CNAME,
-			// rewrite the question to the target and let the next plugin resolve it
-			if state.QType() == dns.TypeA {
-				if _, isCname := answers[0].(*dns.CNAME); isCname {
-					// mutate the question in place
-					r.Question[0].Name = dns.Fqdn(svc.worker)
-					return plugin.NextOrFailure(dd.Name(), dd.Next, ctx, w, r)
-				}
-			}
-
-			return dns.RcodeSuccess, nil
+		if serviceInfo != nil && serviceInfo.hostnames != nil {
+			log.Printf("[swarmdiscovery] Found hostnames for service %s", serviceInfo.service.Spec.Name)
+			ip := net.ParseIP(serviceInfo.worker)
+			log.Printf("[swarmdiscovery] Found IP %s for service %s", ip.String(), serviceInfo.service.Spec.Name)
+			answers = getAnswer(ip, serviceInfo.hostnames, dd.ttl)
+		} else {
+			log.Printf("[swarmdiscovery] No service found for query %s\n", state.QName())
 		}
 	}
 
-	// all other cases, or no service found
-	return plugin.NextOrFailure(dd.Name(), dd.Next, ctx, w, r)
+	if len(answers) == 0 {
+		log.Printf("[swarmdiscovery] No answer found for query %s\n", state.QName())
+		return plugin.NextOrFailure(dd.Name(), dd.Next, ctx, w, r)
+	}
+
+	m := new(dns.Msg)
+	m.SetReply(r)
+	m.Authoritative, m.RecursionAvailable, m.Compress = true, false, true
+	m.Answer = answers
+
+	state.SizeAndDo(m)
+	m = state.Scrub(m)
+	err := w.WriteMsg(m)
+	if err != nil {
+		log.Printf("[swarmdiscovery] Error while service DNS entry: %s", err.Error())
+		return plugin.NextOrFailure(dd.Name(), dd.Next, ctx, w, r)
+	}
+	return dns.RcodeSuccess, nil
 }
 
-func getAnswer(qtype uint16, target string, hostnames []string, ttl uint32) []dns.RR {
+func getAnswer(targetIp net.IP, hostnames []string, ttl uint32) []dns.RR {
 	var answers []dns.RR
-	fqTarget := dns.Fqdn(target)
-
-	for _, h := range hostnames {
-		fqHost := dns.Fqdn(h)
-		switch qtype {
-		case dns.TypeCNAME:
-			answers = append(answers, &dns.CNAME{
-				Hdr:    dns.RR_Header{Name: fqHost, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: ttl},
-				Target: fqTarget,
-			})
-
-		case dns.TypeA:
-			// if the target is an IP, return an A
-			if ip := net.ParseIP(target); ip != nil {
-				answers = append(answers, &dns.A{
-					Hdr: dns.RR_Header{Name: fqHost, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
-					A:   ip,
-				})
-			} else {
-				// otherwise emit a CNAME and let the next plugin chase down the A
-				answers = append(answers, &dns.CNAME{
-					Hdr:    dns.RR_Header{Name: fqHost, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: ttl},
-					Target: fqTarget,
-				})
-			}
+	for _, hostname := range hostnames {
+		record := new(dns.A)
+		record.Hdr = dns.RR_Header{
+			Name:   dns.Fqdn(hostname),
+			Rrtype: dns.TypeA,
+			Class:  dns.ClassINET,
+			Ttl:    ttl,
 		}
+		record.A = targetIp
+		answers = append(answers, record)
 	}
-
 	return answers
 }
