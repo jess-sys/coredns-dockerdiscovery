@@ -1,6 +1,8 @@
 package dockerdiscovery
 
 import (
+	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/coredns/coredns/core/dnsserver"
@@ -24,8 +26,6 @@ func init() {
 // TODO(kevinjqiu): add docker endpoint verification
 func createPlugin(c *caddy.Controller) (*DockerDiscovery, error) {
 	dd := NewDockerDiscovery(defaultDockerEndpoint)
-	labelResolver := &LabelResolver{hostLabel: "coredns.dockerdiscovery.host"}
-	dd.resolvers = append(dd.resolvers, labelResolver)
 
 	for c.Next() {
 		args := c.RemainingArgs()
@@ -40,53 +40,6 @@ func createPlugin(c *caddy.Controller) (*DockerDiscovery, error) {
 		for c.NextBlock() {
 			var value = c.Val()
 			switch value {
-			case "use_host_ip":
-				dd.hostIp = "127.0.0.1"
-				if !c.NextArg() {
-					return dd, c.ArgErr()
-				}
-				dd.hostIp = c.Val()
-			case "domain":
-				var resolver = &SubDomainContainerNameResolver{
-					domain: defaultDockerDomain,
-				}
-				dd.resolvers = append(dd.resolvers, resolver)
-				if !c.NextArg() {
-					return dd, c.ArgErr()
-				}
-				resolver.domain = c.Val()
-			case "hostname_domain":
-				var resolver = &SubDomainHostResolver{
-					domain: defaultDockerDomain,
-				}
-				dd.resolvers = append(dd.resolvers, resolver)
-				if !c.NextArg() {
-					return dd, c.ArgErr()
-				}
-				resolver.domain = c.Val()
-			case "compose_domain":
-				var resolver = &ComposeResolver{
-					domain: defaultDockerDomain,
-				}
-				dd.resolvers = append(dd.resolvers, resolver)
-				if !c.NextArg() {
-					return dd, c.ArgErr()
-				}
-				resolver.domain = c.Val()
-			case "network_aliases":
-				var resolver = &NetworkAliasesResolver{
-					network: "",
-				}
-				dd.resolvers = append(dd.resolvers, resolver)
-				if !c.NextArg() {
-					return dd, c.ArgErr()
-				}
-				resolver.network = c.Val()
-			case "label":
-				if !c.NextArg() {
-					return dd, c.ArgErr()
-				}
-				labelResolver.hostLabel = c.Val()
 			case "ttl":
 				if !c.NextArg() {
 					return dd, c.ArgErr()
@@ -108,7 +61,12 @@ func createPlugin(c *caddy.Controller) (*DockerDiscovery, error) {
 		return dd, err
 	}
 	dd.dockerClient = dockerClient
-	go dd.start()
+	go func() {
+		err := dd.start()
+		if err != nil {
+			log.Fatalln(fmt.Errorf("error starting docker discovery: %v", err))
+		}
+	}()
 	return dd, nil
 }
 

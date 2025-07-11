@@ -129,7 +129,7 @@ func TestMultipleNetworksDockerDiscovery(t *testing.T) {
 // simple check
 func ipOk(t *testing.T, dd *DockerDiscovery, domain string, address net.IP) *ContainerInfo {
 
-	containerInfo, e := dd.containerInfoByDomain(domain)
+	containerInfo, e := dd.serviceInfoByHostname(domain)
 	assert.Nil(t, e)
 	assert.NotNil(t, containerInfo)
 
@@ -142,7 +142,7 @@ func ipOk(t *testing.T, dd *DockerDiscovery, domain string, address net.IP) *Con
 // simple check
 func ipNotOk(t *testing.T, dd *DockerDiscovery, domain string) {
 
-	containerInfo, e := dd.containerInfoByDomain(domain)
+	containerInfo, e := dd.serviceInfoByHostname(domain)
 	assert.Nil(t, e)
 	assert.Nil(t, containerInfo)
 

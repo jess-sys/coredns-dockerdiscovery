@@ -1,0 +1,10 @@
+.:15353 {
+    docker unix:///var/run/docker.sock {
+        ttl 3600
+    }
+    log
+    loop
+    reload
+    errors
+    cache
+}

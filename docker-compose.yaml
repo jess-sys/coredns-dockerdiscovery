@@ -1,0 +1,12 @@
+services:
+  coredns:
+    build: .
+    container_name: coredns
+    restart: always
+    volumes:
+      - "./config:/etc/coredns/:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    ports:
+      - "53:53/udp"
+      - "15353:15353/udp"
+    command: -conf /etc/coredns/Corefile
