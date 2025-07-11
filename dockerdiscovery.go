@@ -295,6 +295,16 @@ func (dd *DockerDiscovery) start() error {
 			event := fmt.Sprintf("%s:%s", msg.Type, msg.Action)
 			fmt.Printf("[special] new API event of type %s: %s, full dump: %+v\n", msg.Type, event, msg)
 			switch event {
+			case "service:create":
+				tasks, _ := dd.dockerClient.ListTasks(dockerapi.ListTasksOptions{
+					Filters: map[string][]string{
+						"node": {msg.Actor.ID},
+					},
+				})
+				log.Printf("\n\nNew task spawned for node %s:\n %+v\n\n", msg.Actor.Attributes["name"], tasks)
+
+				//here
+			case "service:remove":
 			case "container:start":
 				log.Println("[docker] New container spawned. Attempt to add A/AAAA records for it")
 
